@@ -25,3 +25,7 @@ jobs:
 
       - name: Validate App
         run: python -m py_compile app.py
+        
+      - name: Build Docker Image
+        run: docker build -t cares-ai .
+
