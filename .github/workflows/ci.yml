@@ -1,24 +1,11 @@
 name: CI
 
 on:
-push:
+  push:
 
 jobs:
-build:
-runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
 
-```
-steps:
-  - uses: actions/checkout@v4
-
-  - name: Setup Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: "3.10"
-
-  - name: Install Dependencies
-    run: pip install flask scikit-learn numpy
-
-  - name: Check App
-    run: python -m py_compile app.py
-```
+    steps:
+      - uses: actions/checkout@v4
