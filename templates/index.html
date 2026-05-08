@@ -1,15 +1,85 @@
 <!DOCTYPE html>
 <html>
-<head>
-<title>CARES DevOps Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<style>
-body { background:#0f172a; color:white; text-align:center; }
-.box { width:80%; margin:auto; padding:20px; background:#1e293b; border-radius:10px; }
-canvas { max-height:300px; }
-button { padding:10px; margin:5px; border-radius:5px; cursor:pointer; }
-</style>
+<head>
+
+    <title>CARES AI DevOps Dashboard</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+
+        body {
+            background: #0f172a;
+            color: white;
+            font-family: 'Segoe UI';
+            text-align: center;
+        }
+
+        .box {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 10px;
+            width: 85%;
+            margin: auto;
+        }
+
+        canvas {
+            max-height: 300px;
+        }
+
+        h2 {
+            color: #38bdf8;
+        }
+
+        button {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+        }
+
+        .analyze {
+            background: #22c55e;
+        }
+
+        .sensor {
+            background: #ef4444;
+        }
+
+        .network {
+            background: #0ea5e9;
+        }
+
+        .drift {
+            background: #f59e0b;
+        }
+
+        .heal {
+            background: #22c55e;
+        }
+
+        .download {
+            background: #6366f1;
+        }
+
+        .card {
+            background: #334155;
+            padding: 10px;
+            border-radius: 8px;
+            width: 150px;
+        }
+
+        #noDataMsg {
+            color: red;
+            font-weight: bold;
+            display: none;
+        }
+
+    </style>
 
 </head>
 
@@ -17,116 +87,342 @@ button { padding:10px; margin:5px; border-radius:5px; cursor:pointer; }
 
 <div class="box">
 
-<h2>🚀 DevOps Resilience Dashboard</h2>
+    <h2>🚀 CARES AI DevOps Dashboard</h2>
 
-<form method="POST">
-<input name="temperature" placeholder="Temperature"><br><br>
-<input name="humidity" placeholder="Humidity"><br><br>
-<button type="submit">Analyze</button>
-</form>
+    <form method="POST">
 
-<hr>
+        <input name="temperature" placeholder="Temperature">
 
-<!-- ✅ ONLY SHOW AFTER USER INPUT -->
-{% if temperature is not none %}
+        <br><br>
 
-<h3>🌡 {{ temperature }}</h3>
-<h3>💧 {{ humidity }}</h3>
-<h3>⚠ System Status: {{ status }}</h3>
+        <input name="humidity" placeholder="Humidity">
 
-<h3>📊 MTTR: {{ mttr }}</h3>
-<h3>📉 Failure Rate: {{ failure_rate }}</h3>
+        <br><br>
 
-<h3>🤖 AI Decision: {{ decision }}</h3>
-<h3>📊 Model Accuracy: {{ accuracy }}</h3>
+        <button type="submit" class="analyze">
+            Analyze
+        </button>
 
-{% endif %}
+    </form>
 
-<hr>
+    <hr>
 
-<h3>🔥 Chaos Controls</h3>
+    {% if decision %}
 
-<button onclick="triggerChaos('sensor')">Sensor</button>
-<button onclick="triggerChaos('network')">Network</button>
-<button onclick="triggerChaos('drift')">Drift</button>
-<button onclick="triggerChaos('reset')">Self Heal</button>
+    <div style="display:flex; justify-content:space-around; margin-top:20px; flex-wrap:wrap; gap:10px;">
 
-<p>⏱ Wait 3–5 seconds before clicking Self Heal to see MTTR</p>
+        <div class="card">
+            <h4>🌡 Temp</h4>
+            <h3>{{ temperature }}</h3>
+        </div>
 
-<hr>
+        <div class="card">
+            <h4>💧 Humidity</h4>
+            <h3>{{ humidity }}</h3>
+        </div>
 
-<h3>📊 IoT Graph</h3>
-<canvas id="chart"></canvas>
+        <div class="card">
+            <h4>⚠ Status</h4>
+            <h3>{{ status }}</h3>
+        </div>
 
-<h3>📈 MTTR Graph</h3>
-<canvas id="mttrChart"></canvas>
+        <div class="card">
+            <h4>📊 MTTR</h4>
+            <h3>{{ mttr }}</h3>
+        </div>
 
-<h3>🧠 Confusion Matrix</h3>
-<canvas id="cmChart"></canvas>
+        <div class="card">
+            <h4>📉 Failure Rate</h4>
+            <h3>{{ failure_rate }}</h3>
+        </div>
 
-<hr>
+        <div class="card">
+            <h4>🤖 Accuracy</h4>
+            <h3>{{ accuracy }}</h3>
+        </div>
 
-<a href="/download">
-<button>⬇ Download Logs</button>
-</a>
+    </div>
+
+    <h3>Failure: {{ failure }}</h3>
+
+    <h3>Decision: {{ decision }}</h3>
+
+    {% endif %}
+
+    <hr>
+
+    <h3>🔥 Chaos Controls</h3>
+
+    <button class="sensor" onclick="triggerChaos('sensor')">
+        Sensor Failure
+    </button>
+
+    <button class="network" onclick="triggerChaos('network')">
+        Network Failure
+    </button>
+
+    <button class="drift" onclick="triggerChaos('drift')">
+        Drift
+    </button>
+
+    <button class="heal" onclick="triggerChaos('reset')">
+        Self Heal
+    </button>
+
+    <hr>
+
+    <h3>📊 IoT Data Graph</h3>
+
+    <p id="noDataMsg">
+        🚫 No Data (Network Failure)
+    </p>
+
+    <canvas id="chart"></canvas>
+
+    <h3>📈 MTTR Graph</h3>
+
+    <canvas id="mttrChart"></canvas>
+
+    <hr>
+
+    <h3>🧠 Confusion Matrix (Heatmap)</h3>
+
+    <canvas id="cmChart"></canvas>
+
+    <br>
+
+    <a href="/download">
+
+        <button class="download">
+            ⬇ Download Logs (CSV)
+        </button>
+
+    </a>
 
 </div>
 
 <script>
 
-let chart;
-let dataLog = [];
+document.addEventListener("DOMContentLoaded", function(){
 
-function addData(temp, hum) {
+    let chart = null;
+    let mttrChart = null;
+    let cmChart = null;
 
-    let time = new Date().toLocaleTimeString();
+    let autoTemp = {{ temperature if temperature else 'null' }};
+    let autoHum = {{ humidity if humidity else 'null' }};
+    let mttrFromBackend = {{ mttr if mttr else 0 }};
+    let cmData = {{ cm_data|default([[0,0],[0,0]])|tojson }};
 
-    dataLog.push({
-        time: time,
-        temp: temp,
-        hum: hum
+    let dataLog = [];
+    let mttrLog = [];
+
+    function generateData(){
+
+        if(autoTemp === null) return null;
+
+        autoTemp += (Math.random()*4 - 2);
+        autoHum += (Math.random()*6 - 3);
+
+        return {
+
+            time: new Date().toLocaleTimeString(),
+            temp: autoTemp,
+            hum: autoHum
+
+        };
+    }
+
+    function updateGraph(){
+
+        if(autoTemp === 0 && autoHum === 0){
+
+            document.getElementById("noDataMsg").style.display = "block";
+
+            return;
+
+        }
+        else{
+
+            document.getElementById("noDataMsg").style.display = "none";
+
+        }
+
+        let d = generateData();
+
+        if(!d) return;
+
+        dataLog.push(d);
+
+        let labels = dataLog.map(x => x.time);
+        let temps = dataLog.map(x => x.temp);
+        let hums = dataLog.map(x => x.hum);
+
+        let color =
+            autoTemp > 40 ? "red" :
+            autoTemp > 30 ? "orange" :
+            "green";
+
+        if(!chart){
+
+            chart = new Chart(document.getElementById("chart"), {
+
+                type:'line',
+
+                data:{
+
+                    labels:labels,
+
+                    datasets:[
+
+                        {
+                            label:"Temperature",
+                            data:temps,
+                            borderColor:color,
+                            fill:true
+                        },
+
+                        {
+                            label:"Humidity",
+                            data:hums,
+                            borderColor:"blue"
+                        }
+
+                    ]
+
+                }
+
+            });
+
+        }
+        else{
+
+            chart.data.labels = labels;
+            chart.data.datasets[0].data = temps;
+            chart.data.datasets[1].data = hums;
+
+            chart.update();
+
+        }
+
+        if(mttrFromBackend > 0){
+
+            let last =
+                mttrLog.length > 0
+                ? mttrLog[mttrLog.length - 1].value
+                : null;
+
+            if(last !== mttrFromBackend){
+
+                mttrLog.push({
+
+                    time:new Date().toLocaleTimeString(),
+                    value:mttrFromBackend
+
+                });
+
+            }
+
+        }
+
+        let mttrLabels = mttrLog.map(x => x.time);
+        let mttrValues = mttrLog.map(x => x.value);
+
+        if(!mttrChart){
+
+            mttrChart = new Chart(document.getElementById("mttrChart"), {
+
+                type:'bar',
+
+                data:{
+
+                    labels: mttrLabels.length
+                        ? mttrLabels
+                        : ["No Data"],
+
+                    datasets:[{
+
+                        label:"MTTR",
+
+                        data: mttrValues.length
+                            ? mttrValues
+                            : [0],
+
+                        backgroundColor:"purple"
+
+                    }]
+
+                }
+
+            });
+
+        }
+        else{
+
+            mttrChart.data.labels = mttrLabels;
+            mttrChart.data.datasets[0].data = mttrValues;
+
+            mttrChart.update();
+
+        }
+
+    }
+
+    // 🔥 CONFUSION MATRIX
+
+    let flatData = [
+
+        cmData[0][0],
+        cmData[0][1],
+        cmData[1][0],
+        cmData[1][1]
+
+    ];
+
+    let maxVal = Math.max(...flatData, 1);
+
+    let colors = flatData.map(v => {
+
+        let intensity = v / maxVal;
+
+        return `rgba(34,197,94,${intensity})`;
+
     });
 
-    if(dataLog.length > 10){
-        dataLog.shift(); // keep last 10 points
-    }
+    cmChart = new Chart(document.getElementById("cmChart"), {
 
-    let labels = dataLog.map(x => x.time);
-    let temps = dataLog.map(x => x.temp);
-    let hums = dataLog.map(x => x.hum);
+        type:'bar',
 
-    if(!chart){
-        chart = new Chart(document.getElementById("chart"), {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    { label: "Temperature", data: temps, borderColor: "red" },
-                    { label: "Humidity", data: hums, borderColor: "blue" }
-                ]
-            }
-        });
-    } else {
-        chart.data.labels = labels;
-        chart.data.datasets[0].data = temps;
-        chart.data.datasets[1].data = hums;
-        chart.update();
-    }
+        data:{
+
+            labels:["TN","FP","FN","TP"],
+
+            datasets:[{
+
+                label:"Confusion Matrix",
+
+                data:flatData,
+
+                backgroundColor:colors
+
+            }]
+
+        }
+
+    });
+
+    setInterval(updateGraph, 4000);
+
+});
+
+function triggerChaos(type){
+
+    window.location.href = "/inject/" + type;
+
 }
-
-// 🔥 simulate live streaming
-setInterval(() => {
-    let temp = {{ temperature if temperature else 25 }};
-    let hum = {{ humidity if humidity else 50 }};
-
-    temp += (Math.random()*4 - 2);
-    hum += (Math.random()*6 - 3);
-
-    addData(temp, hum);
-
-}, 3000);
 
 </script>
 
 </body>
+
 </html>

@@ -1,15 +1,14 @@
 from flask import Flask, render_template, request, redirect, url_for, send_file
-import time, csv, os
+import time
+import csv
+import os
 
-from sklearn.ensemble import RandomForestClassifier, IsolationForest
+from sklearn.ensemble import IsolationForest
 from sklearn.metrics import confusion_matrix, accuracy_score
-import numpy as np
 
 app = Flask(__name__)
 
-# =========================
 # 🔥 GLOBAL STATE
-# =========================
 failure_count = 0
 failure_start = None
 failure_active = False
@@ -18,68 +17,73 @@ total_requests = 0
 chaos_mode = None
 last_mttr = 0
 
-# =========================
-# 🤖 AI MODELS
-# =========================
-rf_model = RandomForestClassifier()
-iso_model = IsolationForest(contamination=0.2, random_state=42)
-
-# ✅ TRAINING DATA (SIMULATED IoT DATA)
-X_train = np.random.normal(loc=[25,50], scale=[5,10], size=(200,2))
-y_train = [0 if (x[0] < 40 and x[1] < 80) else 1 for x in X_train]
-
-rf_model.fit(X_train, y_train)
-iso_model.fit(X_train)
-
-# =========================
-# 📊 DATA TRACKING
-# =========================
+# 🤖 AI DATA
+X_data = []
 y_true = []
 y_pred = []
+
+model = IsolationForest(contamination=0.2, random_state=42)
 
 # =========================
 # 📝 LOGGING
 # =========================
-def log_data(temp, hum, status, mttr):
+def log_data(temp, hum, failure, status, mttr):
+
     file_exists = os.path.isfile("logs.csv")
-    with open("logs.csv", "a", newline="") as f:
-        writer = csv.writer(f)
+
+    with open("logs.csv", "a", newline="") as file:
+
+        writer = csv.writer(file)
+
         if not file_exists:
-            writer.writerow(["Temp","Humidity","Status","MTTR"])
-        writer.writerow([temp, hum, status, mttr])
+            writer.writerow(["Temp", "Humidity", "Failure", "Status", "MTTR"])
+
+        writer.writerow([temp, hum, failure, status, mttr])
 
 # =========================
-# 🔥 CHAOS
+# DOWNLOAD LOG
 # =========================
-@app.route('/inject/<mode>')
-def inject(mode):
-    global chaos_mode
-    chaos_mode = mode
-    return redirect(url_for('index'))
-
 @app.route('/download')
-def download():
+def download_logs():
     return send_file("logs.csv", as_attachment=True)
 
 # =========================
-# 🚀 MAIN
+# CHAOS
 # =========================
-@app.route('/', methods=['GET','POST'])
+@app.route('/inject/<mode>')
+def inject(mode):
+
+    global chaos_mode
+
+    chaos_mode = mode
+
+    return redirect(url_for('index'))
+
+# =========================
+# MAIN
+# =========================
+@app.route('/', methods=['GET', 'POST'])
 def index():
 
-    global failure_count, failure_start, failure_active
-    global total_requests, chaos_mode, last_mttr
-    global y_true, y_pred
+    global failure_count
+    global failure_start
+    global failure_active
+    global total_requests
+    global chaos_mode
+    global last_mttr
+    global X_data
+    global y_true
+    global y_pred
 
-    # 🔹 Default values (for first page load)
     temperature = None
     humidity = None
+    failure = ""
     status = ""
     decision = ""
     mttr = 0
     failure_rate = 0
     accuracy = 0
-    cm = [[0,0],[0,0]]
+    cm_data = [[0,0],[0,0]]
 
     if request.method == 'POST':
 
@@ -91,47 +95,73 @@ def index():
         # 🔥 CHAOS
         if chaos_mode == "sensor":
             temperature = 80
+
         elif chaos_mode == "network":
             temperature = 0
             humidity = 0
+
         elif chaos_mode == "drift":
             temperature = 38
 
         # =========================
-        # 🤖 AI PREDICTION
+        # ✅ RULE BASED FAILURE
         # =========================
-        rf_pred = rf_model.predict([[temperature, humidity]])[0]
-        iso_pred = iso_model.predict([[temperature, humidity]])[0]
-        iso_flag = 1 if iso_pred == -1 else 0
+        if temperature > 200:
 
-        # =========================
-        # 🎯 STATUS LOGIC
-        # =========================
-        if temperature == 0 and humidity == 0:
+            failure = "Data Corruption"
             status = "RED"
             y_true.append(1)
 
-        elif rf_pred == 1 or iso_flag == 1:
+        elif temperature == 0 and humidity == 0:
+
+            failure = "Network Failure"
+            status = "RED"
+            y_true.append(1)
+
+        elif temperature > 45 or humidity > 90:
+
+            failure = "Sensor Failure"
             status = "RED"
             y_true.append(1)
 
         elif temperature > 35:
+
+            failure = "Drift"
             status = "ORANGE"
             y_true.append(0)
 
         else:
+
+            failure = "No Failure"
             status = "GREEN"
             y_true.append(0)
 
-        y_pred.append(1 if status == "RED" else 0)
+        # =========================
+        # 🤖 AI MODEL
+        # =========================
+        X_data.append([temperature, humidity])
+
+        if len(X_data) > 10:
+
+            model.fit(X_data)
+
+            pred = model.predict([[temperature, humidity]])[0]
+
+            y_pred.append(1 if pred == -1 else 0)
+
+        else:
+
+            y_pred.append(0)
 
         # =========================
-        # ⏱ FAILURE START
+        # 🔥 FAILURE TIMER
         # =========================
         if status == "RED" and not failure_active:
+
             failure_active = True
             failure_start = time.time()
             failure_count += 1
+            last_mttr = 0
 
         # =========================
         # 🔧 SELF HEAL
@@ -140,10 +170,8 @@ def index():
 
             recovery_time = time.time() - failure_start
 
-            if 1 <= recovery_time <= 15:
+            if recovery_time < 30:
                 last_mttr = recovery_time
-            else:
-                last_mttr = 5
 
             failure_active = False
             failure_start = None
@@ -152,48 +180,72 @@ def index():
             temperature = 25
             humidity = 50
             status = "GREEN"
+            failure = "Recovered"
 
-            decision = "🔧 System Recovered (Self-Healed)"
-
-        # =========================
-        # 🎯 DECISION CLEAN LOGIC
-        # =========================
-        elif status == "RED":
-            decision = "🚨 AI Detected Failure"
-
-        elif status == "ORANGE":
-            decision = "⚠️ AI Monitoring"
-
-        elif status == "GREEN" and not failure_active:
-            decision = "✅ System Stable"
+            decision = "🔧 Self Healing Completed"
 
         # =========================
         # 📊 METRICS
         # =========================
-        mttr = last_mttr if last_mttr else 0
-        failure_rate = failure_count / total_requests if total_requests else 0
+        mttr = last_mttr
 
-        if len(y_true) > 5:
+        failure_rate = (
+            failure_count / total_requests
+            if total_requests else 0
+        )
+
+        # =========================
+        # 🎯 DECISION
+        # =========================
+        if status == "RED":
+
+            decision = "🚨 Immediate Action Required"
+
+        elif status == "ORANGE":
+
+            decision = "⚠️ Monitor System"
+
+        elif status == "GREEN" and not failure_active:
+
+            decision = "✅ System Stable"
+
+        # =========================
+        # 📊 ACCURACY + CM
+        # =========================
+        if len(y_true) > 10:
+
             accuracy = accuracy_score(y_true, y_pred)
-            cm = confusion_matrix(y_true, y_pred).tolist()
+
+            cm = confusion_matrix(y_true, y_pred)
+
+            cm_data = cm.tolist()
 
         # =========================
         # 📝 LOGGING
         # =========================
-        log_data(temperature, humidity, status, mttr)
+        log_data(
+            temperature,
+            humidity,
+            failure,
+            status,
+            mttr
+        )
 
-    return render_template('index.html',
-                           temperature=temperature,
-                           humidity=humidity,
-                           status=status,
-                           mttr=round(mttr,2),
-                           failure_rate=round(failure_rate,2),
-                           decision=decision,
-                           accuracy=round(accuracy,2),
-                           cm=cm)
+    return render_template(
+        'index.html',
+        temperature=temperature,
+        humidity=humidity,
+        failure=failure,
+        status=status,
+        decision=decision,
+        mttr=round(mttr, 2),
+        failure_rate=round(failure_rate, 2),
+        accuracy=round(accuracy, 2),
+        cm_data=cm_data
+    )
 
 # =========================
-# ▶ RUN
+# RUN
 # =========================
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5002, debug=True)
